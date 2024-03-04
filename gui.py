@@ -1,227 +1,18 @@
-#import tkinter
-import tkinter.messagebox
+import tkinter as tk
 import customtkinter as ctk
-import speech_recognition as sr
-import keyboard
-import pyttsx3
-import threading
-#import time
-import cv2
 import mediapipe as mp
+import threading
 import pyautogui
+import cv2
+from voice_utils import get_audio, handle_voice_command, speak
 from PIL import Image, ImageTk
 
-# Global variables and configurations
-keyboard_mode = False
-web_mode = False
-universal_mode = True
-last_written_text = ""
-
-# Define a flag to control whether to capture audio or not
-capture_audio = False
-# Create a global variable to store the recognized text
-recognized_text = ""
-# Initialize the TTS engine 
-engine = pyttsx3.init()
-
-# Set properties for the TTS engine
-voices = engine.getProperty('voices')
-# Female voice usually has index 1, but you can verify this by printing the voices list
-engine.setProperty('voice', voices[1].id)
-
-# Define a flag to control whether to capture audio or not
-capture_audio = False
-# Create a global variable to store the recognized text
-recognized_text = ""
-# Initialize the TTS engine 
-engine = pyttsx3.init()
-
-# Set properties for the TTS engine
-voices = engine.getProperty('voices')
-# Female voice usually has index 1, but you can verify this by printing the voices list
-engine.setProperty('voice', voices[1].id)
-
-# Define a function to speak a given message 
-def speak(message):
-    engine.say(message)
-    engine.runAndWait()
-
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
-
-mp_holistic = mp.solutions.holistic
-holistic_model = mp_holistic.Holistic(
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)
-
-mp_drawing = mp.solutions.drawing_utils
-
 cap = cv2.VideoCapture(0)
-SENSITIVITY_FACTOR = 3
-
 cam = cv2.VideoCapture(0)
 face_mesh = mp.solutions.face_mesh.FaceMesh(refine_landmarks=True)
+
 screen_w, screen_h = pyautogui.size()
 
-alpha_numeric_characters = {
-        "letter a": 'a',
-        "letter b": 'b',
-        "letter c": 'c',
-        "letter d": 'd',
-        "letter e": 'e',
-        "letter f": 'f',
-        "letter g": 'g',
-        "letter h": 'h',
-        "letter i": 'i',
-        "letter j": 'j',
-        "letter k": 'k',
-        "letter l": 'l',
-        "letter m": 'm',
-        "letter n": 'n',
-        "letter o": 'o',
-        "letter p": 'p',
-        "letter q": 'q',
-        "letter r": 'r',
-        "letter s": 's',
-        "letter t": 't',
-        "letter u": 'u',
-        "letter v": 'v',
-        "letter w": 'w',
-        "letter x": 'x',
-        "letter y": 'y',
-        "letter z": 'z',
-
-        "number one": '1',
-        "number two": '2',
-        "number three": '3',
-        "number four": '4',
-        "number five": '5',
-        "number six": '6',
-        "number seven": '7',
-        "number eight": '8',
-        "number nine": '9',
-        "number zero": '0',
-    }
-
-web_commands = {
-        "search youtube": "https://www.youtube.com/?app",
-        "search facebook": "https://www.facebook.com/?app",
-        "search google": "https://www.google.com/?app",
-        "search instagram": "https://www.instagram.com/?app",
-    }
-
-# Start listening for voice commands
-def get_audio():
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Microphone initialized")
-        r.adjust_for_ambient_noise(source, duration=1)  # Adjust for 1 second
-        audio = r.listen(source, timeout=None)  # Set timeout=None to ensure continuous listening
-        print("Audio recorded")
-        try:
-            text = r.recognize_google(audio)
-            return text.lower()
-        except sr.UnknownValueError:
-            speak("Google Speech Recognition could not understand audio")
-        except sr.RequestError as e:
-            print("Could not request results from Google Speech Recognition service; {0}".format(e))
-
-# Function to press a character key 
-def press_key(character):
-    keyboard.press_and_release(character)
-
-# Function to press both Enter and Spacebar keys
-def press_enter():
-    keyboard.press_and_release('enter')
-
-def press_space():
-    keyboard.press_and_release('space')
-
-def press_capital():
-    keyboard.press_and_release('caps')
-
-# Function to press both Enter and Spacebar keys
-def press_delete():
-    keyboard.press_and_release('delete')
-
-def press_backspace():
-    keyboard.press_and_release('backspace')
-
-# Function to press Ctrl + key combination
-def press_ctrl_key(key):
-    keyboard.press('ctrl')
-    keyboard.press_and_release(key)
-    keyboard.release('ctrl')
-
- # Function to handle universal mode commands
-def handle_universal_mode(user_input):
-    global keyboard_mode, web_mode, universal_mode
-    if user_input == "alora universal mode":
-        universal_mode, keyboard_mode, web_mode = True, False, False
-        speak("Universal mode activated")
-    elif user_input == "alora universal mode off":
-        universal_mode = False
-        speak("Universal mode deactivated")
-
-# Function to handle the speech recognition
-def recognize_speech(recognizer, audio):
-        global recognized_text
-        try:
-            recognized_text = recognizer.recognize_google(audio).lower()
-        except sr.UnknownValueError:
-            pass  # Ignore if speech cannot be recognized
-        except sr.RequestError as e:
-            print("Could not request results from Google Speech Recognition service; {0}".format(e))
-
-    # Function to handle special commands in universal mode  hellohello
-def handle_special_commands(user_input):
-    if universal_mode:
-        special_commands = {
-            "alora press bar": press_space,
-            "alora press enter": press_enter,
-            "alora press delete": press_delete,
-            "alora press back space": press_backspace,
-        }
-    action = special_commands.get(user_input)
-    if action:
-        action()
-
-    # Function to handle alphanumeric character commands
-def handle_alphanumeric_commands(user_input):
-    global last_written_text
-    if keyboard_mode and user_input in alpha_numeric_characters:
-        press_key(alpha_numeric_characters[user_input])
-    elif user_input == "alora undo":
-        press_ctrl_key('z')
-    elif user_input == "alora redo":
-        press_ctrl_key('y')
-    elif user_input != "alora keyboard mode" and user_input != "alora keyboard mode off":
-        keyboard.write(user_input)
-
-    # Main function to handle voice commands
-def handle_voice_command(user_input):
-    if user_input is not None:
-        handle_keyboard_mode(user_input)
-        # handle_direct_mode(user_input)
-        handle_universal_mode(user_input)
-        handle_special_commands(user_input)
-        handle_alphanumeric_commands(user_input)
-
-# Function to handle keyboard mode commands
-def handle_keyboard_mode(user_input):
-    global keyboard_mode, web_mode, universal_mode
-    if user_input == "alora keyboard mode":
-        if keyboard_mode:
-            return speak("Keyboard mode is already activated")
-        keyboard_mode, web_mode, universal_mode = True, False, False
-        speak("Keyboard mode activated")
-    elif user_input == "alora keyboard mode off":
-        if not keyboard_mode:
-            return speak("Keyboard mode is already deactivated")
-        keyboard_mode = False
-        speak("Keyboard mode deactivated")
-            
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -275,10 +66,11 @@ class App(ctk.CTk):
         self.hand_tracking_mode_active = False
         self.eye_tracking_mode_active = False
 
+        # Create a variable to hold the Tkinter PhotoImage object
+        self.img_tk = None
 
     def sidebar_button_event(self):
         print("clicked")
-
 
     def change_appearance_mode_event(self, new_appearance_mode: str):
         ctk.set_appearance_mode(new_appearance_mode)
@@ -289,17 +81,19 @@ class App(ctk.CTk):
         capture_audio = self.state_var.get()  # Update capture_audio based on the current state
         if capture_audio:
             speak("Voice recognition activated")
-            self.check_voice_command()
+            self.check_voice_command() 
         else:
             speak("Voice recognition deactivated.")
-    
+
     def check_voice_command(self):
         if self.state_var.get() and capture_audio:
             user_input = get_audio()
             if user_input:
                 handle_voice_command(user_input)
 
-        self.start_video_thread()
+        # Schedule check_voice_command to be called again after 100 milliseconds
+        self.after(100, self.check_voice_command)
+
 
     def start_video_thread(self):
         video_thread = threading.Thread(target=self.update_frame)
@@ -315,7 +109,6 @@ class App(ctk.CTk):
 
         if self.hand_tracking_mode_active:
             speak("Hand tracking mode activated")
-            # If activated, start the video capture in a separate thread
             video_thread = threading.Thread(target=self.update_frame)
             video_thread.daemon = True
             video_thread.start()
@@ -337,24 +130,11 @@ class App(ctk.CTk):
             # Converts the color from BLUE-RED-GREEN to RED-GREEN-BLUE
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # Displays the result of the video with the corresponding color schemas
-            results = holistic_model.process(rgb_frame)
             # Draws a landmark for both left and right hands
-            mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-            mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-            
             # Get the position of the index finger tip
-            if results.right_hand_landmarks:
-                index_tip = results.right_hand_landmarks.landmark[mp_holistic.HandLandmark.INDEX_FINGER_TIP]
-                height, width, _ = frame.shape
-                finger_x, finger_y = int(index_tip.x * width), int(index_tip.y * height)
-                # Scale the coordinates for increased sensitivity
-                finger_x_scaled = finger_x * SENSITIVITY_FACTOR
-                finger_y_scaled = finger_y * SENSITIVITY_FACTOR
-                # Move the mouse cursor to the scaled position of the index finger tip
-                pyautogui.moveTo(finger_x_scaled, finger_y_scaled)
-
+            # Move the mouse cursor to the scaled position of the index finger tip
             # Converts the processed BGR format image to PIL format
-            img = Image.fromarray(frame)
+            img = Image.fromarray(rgb_frame)
             # Creates a Tk image from the PIL image using CTKPhotoImage
             img_tk = ImageTk.PhotoImage(image=img)
             # Sets the coordinates of the PhotoImage
@@ -446,9 +226,5 @@ class App(ctk.CTk):
             if cv2.waitKey(1) & 0xFF == 27:
                 break
 
-# Create a root window
 root = App()
-
-# Start the main loop 
 root.mainloop()
-
