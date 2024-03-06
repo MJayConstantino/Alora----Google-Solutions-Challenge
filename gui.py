@@ -12,6 +12,15 @@ cam = cv2.VideoCapture(0)
 face_mesh = mp.solutions.face_mesh.FaceMesh(refine_landmarks=True)
 
 screen_w, screen_h = pyautogui.size()
+mp_holistic = mp.solutions.holistic
+holistic_model = mp_holistic.Holistic(
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)
+
+mp_drawing = mp.solutions.drawing_utils
+
+SENSITIVITY_FACTOR = 3
 
 class App(ctk.CTk):
     def __init__(self):
@@ -94,7 +103,6 @@ class App(ctk.CTk):
         # Schedule check_voice_command to be called again after 100 milliseconds
         self.after(100, self.check_voice_command)
 
-
     def start_video_thread(self):
         video_thread = threading.Thread(target=self.update_frame)
         video_thread.daemon = True
@@ -130,11 +138,24 @@ class App(ctk.CTk):
             # Converts the color from BLUE-RED-GREEN to RED-GREEN-BLUE
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # Displays the result of the video with the corresponding color schemas
+            results = holistic_model.process(rgb_frame)
             # Draws a landmark for both left and right hands
+            mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            
             # Get the position of the index finger tip
-            # Move the mouse cursor to the scaled position of the index finger tip
+            if results.right_hand_landmarks:
+                index_tip = results.right_hand_landmarks.landmark[mp_holistic.HandLandmark.INDEX_FINGER_TIP]
+                height, width, _ = frame.shape
+                finger_x, finger_y = int(index_tip.x * width), int(index_tip.y * height)
+                # Scale the coordinates for increased sensitivity
+                finger_x_scaled = finger_x * SENSITIVITY_FACTOR
+                finger_y_scaled = finger_y * SENSITIVITY_FACTOR
+                # Move the mouse cursor to the scaled position of the index finger tip
+                pyautogui.moveTo(finger_x_scaled, finger_y_scaled)
+
             # Converts the processed BGR format image to PIL format
-            img = Image.fromarray(rgb_frame)
+            img = Image.fromarray(frame)
             # Creates a Tk image from the PIL image using CTKPhotoImage
             img_tk = ImageTk.PhotoImage(image=img)
             # Sets the coordinates of the PhotoImage
@@ -164,7 +185,6 @@ class App(ctk.CTk):
             self.canvas.delete("all")
 
     def eyeTracking(self):
-        
         while self.eye_tracking_mode_active:
             # Capture a frame from the camera
             ret, frame = cam.read()
@@ -209,22 +229,20 @@ class App(ctk.CTk):
                     pyautogui.click()
                     pyautogui.sleep(1)
 
-            # Display the annotated frame
-            cv2.imshow('Eye Controlled Mouse', frame)
-
             # Convert the processed BGR format image to PIL format
             img = Image.fromarray(frame)
             # Creates a Tk image from the PIL image using CTKPhotoImage
             img_tk = ImageTk.PhotoImage(image=img)
 
             # Sets the coordinates of the PhotoImage
-            self.canvas.create_image(0, 0, anchor=ctk.NW, image=img_tk)
+            self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
             # Updates the image displayed in the canvas
             self.canvas.img_tk = img_tk
 
             # Check for the 'Esc' key press to exit the application
             if cv2.waitKey(1) & 0xFF == 27:
                 break
+
 
 root = App()
 root.mainloop()
