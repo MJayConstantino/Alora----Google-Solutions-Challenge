@@ -117,14 +117,15 @@ class App(ctk.CTk):
 
         if self.hand_tracking_mode_active:
             speak("Hand tracking mode activated")
-            video_thread = threading.Thread(target=self.update_frame)
-            video_thread.daemon = True
-            video_thread.start()
+            # Create a new camera capture object
+            global cap
+            cap = cv2.VideoCapture(0)
+            # Start the video thread directly
+            self.start_video_thread()
         else:
             speak("Hand tracking mode deactivated")
             # If deactivated, release video capture
             cap.release()
-            cv2.destroyAllWindows()
             # Clear the canvas
             self.canvas.delete("all")
 
@@ -164,23 +165,90 @@ class App(ctk.CTk):
             self.canvas.img_ctk = img_tk
         root.after(10, self.update_frame)
 
+    def update_eye_frame(self):
+        if not self.eye_tracking_mode_active:
+            return
+        # Capture a frame from the camera
+        ret, frame = cam.read()
+        if not ret:
+            print("Error capturing frame. Exiting.")
+            return
+
+        # Flip the frame horizontally for better user experience
+        frame = cv2.flip(frame, 1)
+
+        # Convert the BGR frame to RGB
+        rgbframe = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Process the frame with face mesh to detect landmarks
+        output = face_mesh.process(rgbframe)
+        landmark_points = output.multi_face_landmarks
+
+        # Get frame dimensions
+        frame_h, frame_w = frame.shape[:2]
+
+        if landmark_points:
+            landmarks = landmark_points[0].landmark
+            for id, landmark in enumerate(landmarks[474:478]):
+                x = int(landmark.x * frame_w)
+                y = int(landmark.y * frame_h)
+                cv2.circle(frame, (x, y), 3, (0, 255, 0))
+                if id == 1:
+                    # Move the mouse cursor based on the detected landmark
+                    screen_x = screen_w * landmark.x
+                    screen_y = screen_h * landmark.y
+                    pyautogui.moveTo(screen_x, screen_y)
+
+            # Additional processing for left eye landmarks
+            left = [landmarks[145], landmarks[159]]
+            for landmark in left:
+                x = int(landmark.x * frame_w)
+                y = int(landmark.y * frame_h)
+                cv2.circle(frame, (x, y), 3, (0, 255, 255))
+
+            # Trigger a mouse click if the vertical distance is below a threshold
+            if (left[0].y - left[1].y) < 0.004:
+                pyautogui.click()
+                pyautogui.sleep(1)
+
+        # Convert the processed BGR format image to PIL format
+        img = Image.fromarray(frame)
+        # Creates a Tk image from the PIL image using CTKPhotoImage
+        img_tk = ImageTk.PhotoImage(image=img)
+
+        # Sets the coordinates of the PhotoImage
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
+        # Updates the image displayed in the canvas
+        self.canvas.img_tk = img_tk
+
+        # Check for the 'Esc' key press to exit the application
+        if cv2.waitKey(1) & 0xFF == 27:
+            self.eye_tracking_mode_active = False
+            cam.release()
+            self.canvas.delete("all")
+            return
+
+        # Schedule the next frame update
+        self.after(10, self.update_eye_frame)
+
     def toggleEyeTracking(self):
         if self.hand_tracking_mode_active:
             self.toggleHandTracking()
-        # Toggle the hand tracking mode state
+
+        # Toggle the eye tracking mode state
         self.eye_tracking_mode_active = not self.eye_tracking_mode_active
 
         if self.eye_tracking_mode_active:
             speak("Eye tracking mode activated")
-            # If activated, start the video capture in a separate thread
-            video_thread = threading.Thread(target=self.eyeTracking)
-            video_thread.daemon = True
-            video_thread.start()
+            # Create a new camera capture object
+            global cam
+            cam = cv2.VideoCapture(0)
+            # Start the eye tracking directly
+            self.update_eye_frame()
         else:
             speak("Eye tracking mode deactivated")
             # If deactivated, release video capture
             cam.release()
-            cv2.destroyAllWindows()
             # Clear the canvas
             self.canvas.delete("all")
 
@@ -242,7 +310,6 @@ class App(ctk.CTk):
             # Check for the 'Esc' key press to exit the application
             if cv2.waitKey(1) & 0xFF == 27:
                 break
-
 
 root = App()
 root.mainloop()
