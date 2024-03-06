@@ -4,6 +4,7 @@ import mediapipe as mp
 import threading
 import pyautogui
 import cv2
+import datetime
 from voice_utils import get_audio, handle_voice_command, speak
 from PIL import Image, ImageTk
 
@@ -20,7 +21,7 @@ holistic_model = mp_holistic.Holistic(
 
 mp_drawing = mp.solutions.drawing_utils
 
-SENSITIVITY_FACTOR = 3
+SENSITIVITY_FACTOR = 4
 
 class App(ctk.CTk):
     def __init__(self):
@@ -29,6 +30,7 @@ class App(ctk.CTk):
         # configure window
         self.title("Alora")
         self.geometry(f"{800}x{450}")
+        self.iconbitmap("alora_logo.ico")
 
         # configure grid layout (4x4)
         self.grid_columnconfigure(1, weight=1)
@@ -45,7 +47,7 @@ class App(ctk.CTk):
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Alora", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        #voice recog button
+        # voice recog button
         self.sidebar_button_1 = ctk.CTkButton(self.sidebar_frame, text="Voice Recognition On", command=self.toggleVoiceRecognition)
         self.sidebar_button_1.grid(row=1, column=0, padx=20, pady=10)
 
@@ -78,8 +80,34 @@ class App(ctk.CTk):
         # Create a variable to hold the Tkinter PhotoImage object
         self.img_tk = None
 
-    def sidebar_button_event(self):
-        print("clicked")
+        # Place the clock below the canvas
+        self.clock = ctk.CTkLabel(self, font=("Arial", 12), width=15, text="")
+        self.clock.grid(row=1, column=1, padx=(20, 20), pady=(10, 0), sticky="ne")
+
+        # Create the date label
+        self.date_label = ctk.CTkLabel(self, font=("Arial", 12), width=15, text="")
+        self.date_label.grid(row=1, column=1, padx=(20, 20), pady=(10, 0), sticky="nw")
+
+        # Make the canvas span two rows (0 and 1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        # Call the update_clock method to initially set the time
+        self.update_clock()
+        self.update_date()
+
+    def update_date(self):
+        now = datetime.datetime.now()
+        self.date_label.configure(text=now.strftime("%m/%d/%Y"))
+        # Schedule the update_date method to be called again after 1000 milliseconds (1 second)
+        self.after(1000, self.update_date)
+
+    def update_clock(self):
+        now = datetime.datetime.now()
+        self.clock.configure(text=now.strftime("%H:%M"))
+        # Schedule the update_clock method to be called again after 1000 milliseconds (1 second)
+        self.after(1000, self.update_clock)
 
     def change_appearance_mode_event(self, new_appearance_mode: str):
         ctk.set_appearance_mode(new_appearance_mode)
@@ -310,6 +338,7 @@ class App(ctk.CTk):
             # Check for the 'Esc' key press to exit the application
             if cv2.waitKey(1) & 0xFF == 27:
                 break
+
 
 root = App()
 root.mainloop()
