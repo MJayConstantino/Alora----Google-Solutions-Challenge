@@ -19,10 +19,10 @@ def get_audio():
     r = sr.Recognizer()
     with sr.Microphone() as source:
         print("Microphone initialized")
-        r.adjust_for_ambient_noise(source, duration=1)  # Adjust for 1 second
+        r.adjust_for_ambient_noise(source, duration=1) 
         try:
             print("Listening...")
-            audio = r.listen(source, timeout=None)  # Set timeout=None to ensure continuous listening
+            audio = r.listen(source, timeout=None) 
             print("Audio recorded")
             text = r.recognize_google(audio)
             return text.lower()
@@ -36,7 +36,6 @@ def get_audio():
 def handle_voice_command(user_input):
     if user_input is not None:
         handle_keyboard_mode(user_input)
-        # handle_direct_mode(user_input)
         handle_universal_mode(user_input)
         handle_special_commands(user_input)
         handle_alphanumeric_commands(user_input)
