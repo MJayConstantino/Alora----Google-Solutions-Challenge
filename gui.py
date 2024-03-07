@@ -259,6 +259,7 @@ class App(ctk.CTk):
                         screen_y = screen_h * landmark.y
                         pyautogui.moveTo(screen_x, screen_y)
 
+                # left eye landmar
                 left = [landmarks[145], landmarks[159]]
                 for landmark in left:
                     x = int(landmark.x * frame_w)
